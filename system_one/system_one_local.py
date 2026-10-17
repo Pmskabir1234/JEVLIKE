@@ -196,7 +196,8 @@ async def _evaluate_one(
                 {"role": "user", "content": user_prompt},
             ],
             format=response_model.model_json_schema(),
-            options={"temperature": 0, "num_predict": 96},
+            options={"temperature": 0, "num_predict": 256},
+            think=False
         )
 
     parsed = response_model.model_validate_json(response.message.content)
@@ -294,7 +295,7 @@ async def evaluate_request(
     }
 
 
-DEMO_REQUEST: dict[str, Any] = {
+DEMO_REQUEST: list[dict[str, Any]] = [{
     "state": {
         "ticket_id": "SUP-1042",
         "customer_message": (
@@ -332,12 +333,93 @@ DEMO_REQUEST: dict[str, Any] = {
             ),
         },
     },
+},
+{
+  "state": {
+          "ticket_id": "SUP-1069",
+          "customer_message": (
+              "Usage limit reached of the claude agent, need renewal. "
+          ),
+          "business_impact": "Adding important features to the application getting delayed.",
+      },
+      "questions": {
+          "team": {
+              "type": "choice",
+              "instructions": "Which team should own this incident?",
+              "criteria": {
+                  "billing": "Payments, invoices, charges, or subscriptions",
+                  "technical": "Software defects, outages, or system failures",
+                  "sales": "Pricing, purchasing, or plan selection",
+                  "general": "Routine requests outside the other teams",
+                  "unknown": "Insufficient evidence to select a team",
+              },
+          },
+          "severity": {
+              "type": "score",
+              "instructions": "Rate the operational impact of this incident.",
+              "criteria": [
+                  "Routine request; no meaningful service disruption",
+                  "Limited impact; a practical workaround exists",
+                  "Major functionality degraded; workaround is difficult",
+                  "Critical production outage blocks the core business flow",
+              ],
+          },
+          "needs_human": {
+              "type": "noul",
+              "instructions": (
+                  "Does this incident need immediate intervention by a human operator?"
+              ),
+          },
+      }  
+},
+# A noul question
+{
+    "state":{
+              "ticket_id": "SUP-1169",
+              "customer_message": (
+                  "My password is reset by someone, I can't access my account now. "
+              ),
+              "business_impact": "User can't access to his account.",
+            },
+          "questions":{
+              "needs_human": {
+                "type": "noul",
+                "instructions": (
+                    "Does this incident appears to have security breach?"
+                ),
+            },
+        }
+},
+# A score question
+{
+    "state": {
+          "ticket_id": "SUP-2069",
+          "customer_message": (
+            "The API access to my subscribed account is disabled."
+          ),
+          "business_impact": "User is not satisfied with account management.",
+    },
+      "questions":{
+          "severity": {
+            "type": "score",
+            "instructions": "Rate the operational impact of this incident.",
+            "criteria": [
+                "Routine request; no meaningful service disruption",
+                "Limited impact; a practical workaround exists",
+                "Major functionality degraded; workaround is difficult",
+                "Critical production outage blocks the core business flow",
+            ],
+        },
+    }
 }
+]
 
 
 async def _main() -> None:
-    result = await evaluate_request(DEMO_REQUEST)
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    for req in DEMO_REQUEST:
+        result = await evaluate_request(req)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        print("-"*70)
 
 
 if __name__ == "__main__":
